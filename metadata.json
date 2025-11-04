@@ -1,0 +1,5 @@
+{
+  "name": "Indoor Wayfinder",
+  "description": "An interactive indoor navigation application that allows users to select a starting point and a destination on a building floor plan and visualizes the shortest path between them. It simulates user movement along the calculated route.",
+  "requestFramePermissions": []
+}
