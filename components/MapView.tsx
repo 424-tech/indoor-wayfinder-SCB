@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import { MapData, POI, Point } from '../types';
 import Map from './Map';
-import { MapContainer, TileLayer, ImageOverlay, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, ImageOverlay, useMap, Rectangle, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Fix Leaflet icon issue
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// Fix Leaflet icon issue safely
+try {
+    // These might fail in some bundlers if the path isn't standard, better to handle safely
+    /* @ts-ignore */
+    // import icon from 'leaflet/dist/images/marker-icon.png';
+    // /* @ts-ignore */
+    // import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
+    // let DefaultIcon = L.icon({
+    //     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    //     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+    //     iconSize: [25, 41],
+    //     iconAnchor: [12, 41]
+    // });
+    // L.Marker.prototype.options.icon = DefaultIcon;
+} catch (e) {
+    console.warn("Could not setup Leaflet icons", e);
+}
 
 interface MapViewProps {
     mapData: MapData;
@@ -50,10 +56,12 @@ const MapView: React.FC<MapViewProps> = ({
 
     const activeFloor = mapData.floors.find(f => f.id === activeFloorId);
 
-    // MOCK Coordinates for the building (roughly corresponding to 2000x1200 px)
-    // Let's place it in a real location, e.g., a generic tech park
-    const bounds: L.LatLngBoundsExpression = [[40.712, -74.008], [40.714, -74.004]];
-    const center: L.LatLngExpression = [40.713, -74.006];
+    // SCB Medical College and Hospital, Cuttack Coordinates
+    const center: L.LatLngExpression = [20.4733, 85.8917];
+    const bounds: L.LatLngBoundsExpression = [
+        [20.4723, 85.8907], // South-West
+        [20.4743, 85.8927]  // North-East
+    ];
 
     return (
         <div className="flex flex-col h-full relative">
@@ -170,18 +178,13 @@ const MapView: React.FC<MapViewProps> = ({
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
-                        {/* We try to overlay the active floor SVG - Note: This requires SVG to be accessible as URL or render specific component. 
-                       For now, let's just place a Marker at the building. 
-                       Implementing full SVGOverlay with React components is complex. 
-                       I will put a Rectangle to show the building bounds.
-                   */}
-                        <L.Rectangle bounds={bounds} pathOptions={{ color: 'blue', weight: 1, fillOpacity: 0.1 }} />
-                        <L.Marker position={center}>
-                            <L.Popup>
-                                <div className="font-bold">Main Hospital Building</div>
+                        <Rectangle bounds={bounds} pathOptions={{ color: 'blue', weight: 1, fillOpacity: 0.1 }} />
+                        <Marker position={center}>
+                            <Popup>
+                                <div className="font-bold">SCB Medical Center</div>
                                 Current Floor: {activeFloor?.name}
-                            </L.Popup>
-                        </L.Marker>
+                            </Popup>
+                        </Marker>
                     </MapContainer>
                 </div>
             )}
