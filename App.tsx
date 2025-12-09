@@ -3,6 +3,8 @@ import { POI, Point, Instruction } from './types';
 import { MAP_DATA } from './constants';
 import MapView from './components/MapView';
 import ControlPanel from './components/ControlPanel';
+import NavigationHUD from './components/NavigationHUD';
+import ArrivalScreen from './components/ArrivalScreen';
 import { findPath, createWalkableGrids, generateInstructions } from './services/pathfinding';
 
 function App() {
@@ -16,11 +18,15 @@ function App() {
   const [activeFloorId, setActiveFloorId] = useState('floor-1');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isAccessible, setIsAccessible] = useState(false);
+  const [hasArrived, setHasArrived] = useState(false);
 
   // Animation state
   const [currentPosition, setCurrentPosition] = useState<Point | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const animationFrameRef = useRef<number | null>(null);
+
+  // ... rest of lines
+
 
   // Flatten POIs from all floors for the ControlPanel
   const allPois = useMemo(() => {
@@ -105,6 +111,13 @@ function App() {
     }
   }, [distanceTraveled, path, activeFloorId]);
 
+  // Focus Mode: Auto-close sidebar
+  useEffect(() => {
+    if (isAnimating) {
+      setSidebarOpen(false);
+    }
+  }, [isAnimating]);
+
   // Auto-walk animation loop
   useEffect(() => {
     if (!isAnimating || !path) return;
@@ -121,6 +134,7 @@ function App() {
         const next = prev + SPEED * (deltaTime / 16.67); // Normalize to ~60fps
         if (next >= totalLength) {
           setIsAnimating(false);
+          setHasArrived(true); // Trigger Success Screen
           return totalLength;
         }
         return next;
@@ -160,7 +174,7 @@ function App() {
   );
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-gray-900 text-white font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-50 text-slate-800 font-sans selection:bg-blue-100 selection:text-blue-900">
 
       {/* 2. Map Background - Full Screen with Safe Area for Sidebar */}
       <div className={`absolute inset-0 z-0 transition-all duration-500 ease-in-out ${isSidebarOpen ? 'md:pl-[400px]' : 'pl-0'}`}>
@@ -179,40 +193,52 @@ function App() {
         />
       </div>
 
-      {/* Re-open Button (Visible when closed) */}
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className={`absolute top-6 left-6 z-10 glass-button p-3 rounded-full shadow-lg transition-all duration-300 ${!isSidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}
-        aria-label="Open Menu"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-white">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
-      </button>
+      {/* Focus Mode HUD */}
+      {isAnimating && (
+        <NavigationHUD
+          activeInstruction={instructions[Math.min(Math.floor((distanceTraveled / (path ? path.length * 10 : 1)) * instructions.length), instructions.length - 1)]}
+          totalDistanceRemaining={(path ? path.length * 10 : 0) - distanceTraveled}
+          distanceToNext={20} // Placeholder
+          onStopNavigation={() => { setIsAnimating(false); setSidebarOpen(true); }}
+        />
+      )}
+
+      {/* Re-open Button (Visible when closed AND NOT navigating) */}
+      {!isAnimating && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className={`absolute top-6 left-6 z-10 glass-button p-3 rounded-full shadow-lg transition-all duration-300 ${!isSidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}
+          aria-label="Open Menu"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-slate-700">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+      )}
 
       {/* 3. Floating Glass Panel - Left Side */}
       <div className={`absolute top-4 left-4 bottom-4 w-full md:w-[400px] z-20 flex flex-col pointer-events-none transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%]'}`}>
 
-        <div className="glass-panel text-white rounded-2xl flex flex-col h-full shadow-2xl overflow-hidden pointer-events-auto mx-2 md:mx-0 animate-fade-in relative">
+        <div className="glass-panel rounded-2xl flex flex-col h-full shadow-2xl overflow-hidden pointer-events-auto mx-2 md:mx-0 animate-fade-in relative bg-white/90 backdrop-blur-xl border border-white/50">
 
           {/* Header */}
-          <div className="p-6 pb-4 border-b border-white/10 shrink-0 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 flex justify-between items-start">
+          <div className="p-6 pb-4 border-b border-gray-100 shrink-0 flex justify-between items-start">
             <div>
               <div className="flex items-center space-x-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white">
                     <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-md">SCB Wayfinder</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-800">SCB Wayfinder</h1>
               </div>
-              <p className="text-white/60 text-sm pl-10 font-medium">Medical Indoor Navigation System</p>
+              <p className="text-slate-500 text-sm pl-10 font-medium">Medical Indoor Navigation System</p>
             </div>
 
             {/* Close Button */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+              className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600"
               aria-label="Close Menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -243,15 +269,51 @@ function App() {
               onAccessibleChange={setIsAccessible}
               isAnimating={isAnimating}
               onPlayPause={handlePlayPause}
+              onEmergencyClick={() => {
+                const startId = 'main-entrance';
+                const endId = 'emergency-west';
+
+                setStartPoiId(startId);
+                setEndPoiId(endId);
+
+                // Instant Pathfinding without waiting for state update
+                const startPoi = allPois.find(p => p.id === startId);
+                const endPoi = allPois.find(p => p.id === endId);
+
+                if (startPoi && endPoi) {
+                  const foundPath = findPath(startPoi.position, endPoi.position, MAP_DATA, walkableGrids, isAccessible);
+                  if (foundPath) {
+                    setPath(foundPath);
+                    setInstructions(generateInstructions(foundPath, MAP_DATA));
+                    setActiveFloorId(startPoi.position.floorId || 'floor-1');
+                    setCurrentPosition(foundPath[0]);
+                    setDistanceTraveled(0);
+                    // Optional: Auto-start walking? Maybe waiting for user to click "Play" is safer/better UX so they can orient themselves.
+                    // But the prompt said "Go to Emergency".
+                    // Let's leaves isAnimating false so they see the overview first.
+                  }
+                }
+              }}
             />
           </div>
 
           {/* Footer */}
-          <div className="p-3 border-t border-white/10 text-[10px] text-white/40 text-center shrink-0 uppercase tracking-widest bg-black/20">
+          <div className="p-3 border-t border-gray-100 text-[10px] text-slate-400 text-center shrink-0 uppercase tracking-widest bg-slate-50/50">
             &copy; 2025 SCB Medical Center
           </div>
         </div>
       </div>
+
+      {/* Arrival Success Screen */}
+      {hasArrived && endPoi && (
+        <ArrivalScreen
+          destinationName={endPoi.name}
+          onDismiss={() => {
+            setHasArrived(false);
+            setSidebarOpen(true);
+          }}
+        />
+      )}
 
     </div>
   );

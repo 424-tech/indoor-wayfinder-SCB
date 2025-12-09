@@ -347,7 +347,8 @@ export const generateInstructions = (path: Point[], mapData: MapData): Instructi
             // Floor Change Detected!
             // Process the previous segment
             if (floorPathSegment.length > 0) {
-                instructions.push(...generateFloorInstructions(floorPathSegment));
+                const floor = mapData.floors.find(f => f.id === currentFloorId);
+                instructions.push(...generateFloorInstructions(floorPathSegment, floor ? floor.pois : []));
             }
 
             // Add Floor Change Instruction
@@ -365,13 +366,14 @@ export const generateInstructions = (path: Point[], mapData: MapData): Instructi
         }
     }
 
-    // Process final segment
+    // Process the final segment
     if (floorPathSegment.length > 0) {
+        const floor = mapData.floors.find(f => f.id === currentFloorId);
         if (instructions.length > 0) {
             // Ensure the first point of the new segment connects well logically
-            instructions.push(...generateFloorInstructions(floorPathSegment, true));
+            instructions.push(...generateFloorInstructions(floorPathSegment, floor ? floor.pois : [], true));
         } else {
-            instructions.push(...generateFloorInstructions(floorPathSegment));
+            instructions.push(...generateFloorInstructions(floorPathSegment, floor ? floor.pois : []));
         }
     }
 
@@ -387,12 +389,29 @@ export const generateInstructions = (path: Point[], mapData: MapData): Instructi
     }));
 };
 
-const generateFloorInstructions = (path: Point[], isContinuation = false): Instruction[] => {
+const generateFloorInstructions = (path: Point[], floorPois: POI[], isContinuation = false): Instruction[] => {
     if (path.length < 2 && !isContinuation) return [];
 
     const insts: Instruction[] = [];
     let currentSegmentDistance = 0;
     const getAngle = (p1: Point, p2: Point) => Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+    // Helper to find landmark
+    const findLandmark = (p: Point) => {
+        // Find closest POI within distance
+        let closest: POI | null = null;
+        let minD = 100; // 100px radius
+
+        for (const poi of floorPois) {
+            // Ignore generic structural POIs if needed, but 'Elevator' is good to know.
+            const d = Math.sqrt((p.x - poi.position.x) ** 2 + (p.y - poi.position.y) ** 2);
+            if (d < minD) {
+                minD = d;
+                closest = poi;
+            }
+        }
+        return closest ? closest.name : null;
+    };
 
     // Initial instruction for this floor
     if (!isContinuation) {
@@ -428,10 +447,14 @@ const generateFloorInstructions = (path: Point[], isContinuation = false): Instr
                 // It's a turn
                 const direction: Direction = diff > 0 ? 'right' : 'left';
 
+                // Check landmark at the turn point (p2)
+                const landmarkName = findLandmark(p2);
+                const landmarkText = landmarkName ? ` at ${landmarkName}` : '';
+
                 insts.push({
                     type: 'turn',
                     direction: direction,
-                    text: `Turn ${direction} `,
+                    text: `Turn ${direction}${landmarkText}`,
                     distance: 0
                 });
                 currentSegmentDistance = 0;

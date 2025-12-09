@@ -177,7 +177,6 @@ const MapView: React.FC<MapViewProps> = ({
                             transform: (() => {
                                 let bearing = 0;
                                 if (path && currentPosition) {
-                                    // Find the closest point in path ahead of us
                                     let minD = Infinity;
                                     let closestPathPointIndex = -1;
                                     for (let i = 0; i < path.length; i++) {
@@ -188,13 +187,10 @@ const MapView: React.FC<MapViewProps> = ({
                                         }
                                     }
 
-                                    // If we found a closest point and it's not the last one, calculate bearing to the next point
                                     if (closestPathPointIndex !== -1 && closestPathPointIndex < path.length - 1) {
                                         const nextPoint = path[closestPathPointIndex + 1];
                                         bearing = getBearing(currentPosition, nextPoint);
                                     } else if (path.length > 1) {
-                                        // If currentPosition is past the last point, or very close to it,
-                                        // orient towards the last segment's direction.
                                         bearing = getBearing(path[path.length - 2], path[path.length - 1]);
                                     }
                                 }
@@ -205,35 +201,28 @@ const MapView: React.FC<MapViewProps> = ({
                     >
                         {/* Map World Translated */}
                         <div
-                            className="transition-transform duration-75 ease-linear will-change-transform" // duration-75 for smooth updates
+                            className="transition-transform duration-75 ease-linear will-change-transform"
                             style={{
                                 transform: `translate(${-currentPosition?.x || 0}px, ${-currentPosition?.y || 0}px)`,
-                                width: 0, height: 0, overflow: 'visible'
+                                width: 0, height: 0
                             }}
                         >
-                            <div className="relative" style={{ width: 1000, height: 1000, transform: 'translate(-500px, -500px)' }}> {/* Center origin offset hack? No. point is 0,0 */}
-                                {/* Actually, Map uses coordinates directly? check Map component. 
-                                    Usually SVG coordinates match pixel coordinates. 
-                                    So if I translate by -x, -y, the point (x,y) moves to (0,0).
-                                    (0,0) is `absolute left-1/2 bottom-20` of the screen.
-                                */}
-                                <div style={{ transform: 'translate(0, 0)' }}> {/* Reset arbitrary centering */}
-                                    <Map
-                                        mapData={mapData}
-                                        activeFloorId={activeFloorId}
-                                        startPoi={startPoi}
-                                        endPoi={endPoi}
-                                        path={path}
-                                        onPoiClick={onPoiClick}
-                                        currentPosition={currentPosition}
-                                    />
-                                </div>
+                            <div style={{ width: mapData.width, height: mapData.height }}>
+                                <Map
+                                    mapData={mapData}
+                                    activeFloorId={activeFloorId}
+                                    startPoi={startPoi}
+                                    endPoi={endPoi}
+                                    path={path}
+                                    onPoiClick={onPoiClick}
+                                    currentPosition={currentPosition}
+                                />
                             </div>
                         </div>
                     </div>
 
                     {/* HUD - Directions */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none">
                         <div className="w-16 h-16 rounded-full bg-blue-600 border-4 border-white shadow-xl flex items-center justify-center animate-pulse z-10">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 text-white">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
@@ -245,6 +234,7 @@ const MapView: React.FC<MapViewProps> = ({
                     </div>
                 </div>
             )}
+
             {/* 3D MODE */}
             {viewMode === ViewMode.INDOOR_3D && (
                 <div className="flex-1 overflow-hidden bg-slate-800 perspective-[2000px] flex items-center justify-center relative">
