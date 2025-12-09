@@ -1,225 +1,169 @@
-
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import Map from './components/Map';
-import ControlPanel from './components/ControlPanel';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { POI, Point, Instruction } from './types';
 import { MAP_DATA } from './constants';
-import { findPath, createWalkableGrid } from './services/pathfinding';
-import { Point, POIType } from './types';
+import MapView from './components/MapView';
+import ControlPanel from './components/ControlPanel';
+import { findPath, createWalkableGrids, generateInstructions } from './services/pathfinding';
 
-const calculatePathLength = (path: Point[]): number => {
-  let total = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    const p1 = path[i];
-    const p2 = path[i + 1];
-    total += Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-  }
-  return total;
-};
-
-const getPointAtDistance = (path: Point[], distance: number): Point | null => {
-  if (!path || path.length === 0) return null;
-  if (distance <= 0) return path[0];
-
-  let distanceCovered = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    const p1 = path[i];
-    const p2 = path[i + 1];
-    const segmentDistance = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-    
-    if (distanceCovered + segmentDistance >= distance) {
-      const fraction = (distance - distanceCovered) / segmentDistance;
-      const x = p1.x + fraction * (p2.x - p1.x);
-      const y = p1.y + fraction * (p2.y - p1.y);
-      return { x, y };
-    }
-    distanceCovered += segmentDistance;
-  }
-  return path[path.length - 1];
-};
-
-const App: React.FC = () => {
-  const [startPoiId, setStartPoiId] = useState<string | null>('main-entrance');
+function App() {
+  const [startPoiId, setStartPoiId] = useState<string | null>(null);
   const [endPoiId, setEndPoiId] = useState<string | null>(null);
   const [path, setPath] = useState<Point[] | null>(null);
   const [isPathfinding, setIsPathfinding] = useState(false);
-  const [currentPosition, setCurrentPosition] = useState<Point | null>(null);
   const [distanceTraveled, setDistanceTraveled] = useState(0);
-  const [totalPathLength, setTotalPathLength] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [highlightedPoiIds, setHighlightedPoiIds] = useState<Set<string>>(new Set());
+  const [instructions, setInstructions] = useState<Instruction[]>([]);
+  const [activeFloorId, setActiveFloorId] = useState('floor-1');
 
+  // Animation state
+  const [currentPosition, setCurrentPosition] = useState<Point | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   const animationFrameRef = useRef<number>();
-  const STEP_DISTANCE = 15; // feet
 
-  const walkableGrid = useMemo(() => createWalkableGrid(MAP_DATA), []);
+  // Flatten POIs from all floors for the ControlPanel
+  const allPois = useMemo(() => {
+    return MAP_DATA.floors.flatMap(f => f.pois);
+  }, []);
 
-  const startPoi = useMemo(() => MAP_DATA.pois.find(p => p.id === startPoiId), [startPoiId]);
-  const endPoi = useMemo(() => MAP_DATA.pois.find(p => p.id === endPoiId), [endPoiId]);
-
-  useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    if (!query) {
-      setHighlightedPoiIds(new Set());
-      return;
-    }
-    const highlighted = new Set<string>();
-    MAP_DATA.pois.forEach(poi => {
-      const poiName = poi.name.toLowerCase();
-      const poiType = poi.type || '';
-      if (poiName.includes(query) || poiType.includes(query)) {
-        highlighted.add(poi.id);
-      }
-    });
-    setHighlightedPoiIds(highlighted);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (startPoi) {
-      setCurrentPosition(startPoi.position);
-    }
-  }, [startPoi]);
-
-  const resetPath = () => {
-    setPath(null);
-    setIsAnimating(false);
-    setDistanceTraveled(0);
-    setTotalPathLength(0);
-    if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-    }
-  }
+  // Pre-calculate walkable grids for all floors
+  const walkableGrids = useMemo(() => createWalkableGrids(MAP_DATA), []);
 
   const handleStartChange = (id: string) => {
     setStartPoiId(id);
-    const poi = MAP_DATA.pois.find(p => p.id === id);
-    if(poi) setCurrentPosition(poi.position);
-    resetPath();
+    setPath(null);
+    setInstructions([]);
+    setDistanceTraveled(0);
+    setCurrentPosition(null);
+
+    // Switch to the floor of the selected POI
+    const poi = allPois.find(p => p.id === id);
+    if (poi) setActiveFloorId(poi.floorId);
   };
 
   const handleEndChange = (id: string) => {
     setEndPoiId(id);
-    resetPath();
+    setPath(null);
+    setInstructions([]);
+    setDistanceTraveled(0);
   };
-  
+
   const handleFindPath = useCallback(() => {
-    if (!startPoi || !endPoi) return;
+    if (!startPoiId || !endPoiId) return;
 
     setIsPathfinding(true);
-    resetPath();
-    setCurrentPosition(startPoi.position);
-
+    // Simulate calculation delay for UX
     setTimeout(() => {
-      const foundPath = findPath(startPoi.position, endPoi.position, MAP_DATA, walkableGrid);
-      setPath(foundPath);
-      setIsPathfinding(false);
-      if (foundPath && foundPath.length > 0) {
-        setTotalPathLength(calculatePathLength(foundPath));
-        setIsAnimating(true);
-      }
-    }, 50);
-  }, [startPoi, endPoi, walkableGrid]);
+      const startPoi = allPois.find((p) => p.id === startPoiId);
+      const endPoi = allPois.find((p) => p.id === endPoiId);
 
-  const handlePoiClick = (poiId: string) => {
-    if (startPoiId && poiId !== startPoiId) {
-        setEndPoiId(poiId);
-    }
+      if (startPoi && endPoi) {
+        // Updated findPath signature
+        const foundPath = findPath(startPoi.position, endPoi.position, MAP_DATA, walkableGrids);
+        setPath(foundPath);
+        if (foundPath) {
+          setInstructions(generateInstructions(foundPath, MAP_DATA));
+          // Ensure we are viewing the start floor
+          setActiveFloorId(startPoi.position.floorId || 'floor-1');
+
+          // Start Animation Logic
+          setCurrentPosition(foundPath[0]);
+          setIsAnimating(true);
+          setDistanceTraveled(0);
+        } else {
+          alert('No path found! Are the points connected?');
+        }
+      }
+      setIsPathfinding(false);
+    }, 500);
+  }, [startPoiId, endPoiId, allPois, walkableGrids]);
+
+  const handleStepForward = () => {
+    // Manual Step logic
+    if (!path) return;
+    const STEP = 20;
+    setDistanceTraveled(prev => {
+      const next = Math.min(prev + STEP, path.length * 10); // Rough approximation
+      return next;
+    });
   };
 
+  const handleStepBackward = () => {
+    setDistanceTraveled(prev => Math.max(prev - 20, 0));
+  };
+
+  // Update position based on distanceTraveled (Simplified for demo)
   useEffect(() => {
-    if (endPoiId) {
-        handleFindPath();
+    if (path && distanceTraveled >= 0) {
+      // Naive interpolation: treating path array index as distance unit roughly
+      const index = Math.min(Math.floor(distanceTraveled / 10), path.length - 1);
+      if (path[index]) {
+        setCurrentPosition(path[index]);
+        setActiveFloorId(path[index].floorId || activeFloorId);
+      }
     }
-  }, [endPoiId, startPoiId]);
+  }, [distanceTraveled, path, activeFloorId]);
 
 
-  const handleStep = useCallback((direction: 'forward' | 'backward') => {
-    if (!path || totalPathLength === 0) return;
-    setIsAnimating(false);
-    
-    const newDistance = distanceTraveled + (direction === 'forward' ? STEP_DISTANCE : -STEP_DISTANCE);
-    const clampedDistance = Math.max(0, Math.min(newDistance, totalPathLength));
+  const startPoi = allPois.find((p) => p.id === startPoiId) || null;
+  const endPoi = allPois.find((p) => p.id === endPoiId) || null;
 
-    setDistanceTraveled(clampedDistance);
-    const newPosition = getPointAtDistance(path, clampedDistance);
-    if (newPosition) {
-      setCurrentPosition(newPosition);
-    }
-  }, [path, distanceTraveled, totalPathLength]);
-  
-  useEffect(() => {
-    if (!isAnimating || !path || path.length <= 1) {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      return;
-    }
-    
-    let startTime = performance.now();
-    const speed = 100; // feet per second
-
-    const animate = (currentTime: number) => {
-      const elapsedTime = (currentTime - startTime) / 1000;
-      const newDistance = elapsedTime * speed;
-
-      if (newDistance >= totalPathLength) {
-        setDistanceTraveled(totalPathLength);
-        setCurrentPosition(path[path.length - 1]);
-        setIsAnimating(false);
-        return;
-      }
-
-      setDistanceTraveled(newDistance);
-      const newPosition = getPointAtDistance(path, newDistance);
-      if (newPosition) {
-        setCurrentPosition(newPosition);
-      }
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [path, isAnimating, totalPathLength]);
-
+  // Filter POIs for search
+  const filteredPois = allPois.filter(p =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row p-4 sm:p-6 lg:p-8 gap-8">
-      <aside className="w-full lg:w-1/3 xl:w-1/4 flex-shrink-0">
-        <ControlPanel
-          pois={MAP_DATA.pois}
-          startPoiId={startPoiId}
-          endPoiId={endPoiId}
-          onStartChange={handleStartChange}
-          onEndChange={handleEndChange}
-          onFindPath={handleFindPath}
-          isPathfinding={isPathfinding}
-          path={path}
-          distanceTraveled={distanceTraveled}
-          totalPathLength={totalPathLength}
-          onStepForward={() => handleStep('forward')}
-          onStepBackward={() => handleStep('backward')}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
-      </aside>
-      <main className="flex-grow min-h-[50vh] lg:min-h-0">
-        <Map
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
+      {/* Sidebar / Control Panel */}
+      <div className="w-full md:w-96 bg-white shadow-xl z-20 flex flex-col border-r border-gray-200">
+        <div className="p-6 bg-blue-600 text-white">
+          <h1 className="text-2xl font-bold tracking-tight">SCB Wayfinder</h1>
+          <p className="text-blue-100 text-sm mt-1">SCB Medical Indoor Navigation</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <ControlPanel
+            pois={filteredPois}
+            startPoiId={startPoiId}
+            endPoiId={endPoiId}
+            onStartChange={handleStartChange}
+            onEndChange={handleEndChange}
+            onFindPath={handleFindPath}
+            isPathfinding={isPathfinding}
+            path={path}
+            instructions={instructions}
+            distanceTraveled={distanceTraveled}
+            totalPathLength={path ? path.length * 10 : 0} // Rough estimate
+            onStepForward={handleStepForward}
+            onStepBackward={handleStepBackward}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
+
+        <div className="p-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 text-center">
+          &copy; 2025 SCB Medical
+        </div>
+      </div>
+
+      {/* Main Map Area */}
+      <div className="flex-1 relative bg-gray-100 h-full">
+        <MapView
           mapData={MAP_DATA}
-          path={path}
           startPoi={startPoi}
           endPoi={endPoi}
+          path={path}
+          onPoiClick={(poi) => {
+            if (!startPoiId) handleStartChange(poi.id);
+            else handleEndChange(poi.id);
+          }}
+          activeFloorId={activeFloorId}
+          onFloorChange={setActiveFloorId}
           currentPosition={currentPosition}
-          highlightedPoiIds={highlightedPoiIds}
-          onPoiClick={handlePoiClick}
         />
-      </main>
+      </div>
     </div>
   );
-};
+}
 
 export default App;
