@@ -25,6 +25,10 @@ try {
     console.warn("Could not setup Leaflet icons", e);
 }
 
+const getBearing = (start: Point, end: Point) => {
+    return (Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI) + 90;
+};
+
 interface MapViewProps {
     mapData: MapData;
     startPoi: POI | null;
@@ -38,6 +42,7 @@ interface MapViewProps {
 
 export enum ViewMode {
     INDOOR_2D = '2D',
+    WALK = 'Walk',
     INDOOR_3D = '3D',
     OUTDOOR = 'Outdoor'
 }
@@ -105,9 +110,9 @@ const MapView: React.FC<MapViewProps> = ({
                 <div className="flex-1 overflow-hidden p-8 bg-slate-100 flex flex-col relative">
                     {/* React Zoom Pan Pinch Wrapper */}
                     <TransformWrapper
-                        initialScale={1}
-                        minScale={0.5}
-                        maxScale={4}
+                        initialScale={0.5}
+                        minScale={0.1}
+                        maxScale={8}
                         centerOnInit={true}
                         wheel={{ step: 0.1 }}
                     >
@@ -117,21 +122,21 @@ const MapView: React.FC<MapViewProps> = ({
                                 <div className="absolute bottom-8 right-8 z-[1000] flex flex-col gap-2">
                                     <button
                                         onClick={() => zoomIn()}
-                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xl font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
                                         title="Zoom In"
                                     >
                                         +
                                     </button>
                                     <button
                                         onClick={() => zoomOut()}
-                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xl font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
                                         title="Zoom Out"
                                     >
                                         -
                                     </button>
                                     <button
                                         onClick={() => resetTransform()}
-                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xs font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
                                         title="Reset View"
                                     >
                                         Fit
@@ -160,6 +165,86 @@ const MapView: React.FC<MapViewProps> = ({
                 </div>
             )}
 
+            {/* WALK MODE - First Person Perspective */}
+            {viewMode === ViewMode.WALK && (
+                <div className="flex-1 overflow-hidden bg-gradient-to-b from-sky-200 to-slate-300 relative" style={{ perspective: '800px' }}>
+
+                    {/* Camera Container */}
+                    <div
+                        className="absolute left-1/2 bottom-20 w-0 h-0 transition-transform duration-500 ease-linear will-change-transform"
+                        style={{
+                            transformStyle: 'preserve-3d',
+                            transform: (() => {
+                                let bearing = 0;
+                                if (path && currentPosition) {
+                                    // Find the closest point in path ahead of us
+                                    let minD = Infinity;
+                                    let closestPathPointIndex = -1;
+                                    for (let i = 0; i < path.length; i++) {
+                                        const d = Math.hypot(path[i].x - currentPosition.x, path[i].y - currentPosition.y);
+                                        if (d < minD) {
+                                            minD = d;
+                                            closestPathPointIndex = i;
+                                        }
+                                    }
+
+                                    // If we found a closest point and it's not the last one, calculate bearing to the next point
+                                    if (closestPathPointIndex !== -1 && closestPathPointIndex < path.length - 1) {
+                                        const nextPoint = path[closestPathPointIndex + 1];
+                                        bearing = getBearing(currentPosition, nextPoint);
+                                    } else if (path.length > 1) {
+                                        // If currentPosition is past the last point, or very close to it,
+                                        // orient towards the last segment's direction.
+                                        bearing = getBearing(path[path.length - 2], path[path.length - 1]);
+                                    }
+                                }
+
+                                return `rotateX(60deg) rotateZ(${-bearing}deg)`;
+                            })()
+                        }}
+                    >
+                        {/* Map World Translated */}
+                        <div
+                            className="transition-transform duration-75 ease-linear will-change-transform" // duration-75 for smooth updates
+                            style={{
+                                transform: `translate(${-currentPosition?.x || 0}px, ${-currentPosition?.y || 0}px)`,
+                                width: 0, height: 0, overflow: 'visible'
+                            }}
+                        >
+                            <div className="relative" style={{ width: 1000, height: 1000, transform: 'translate(-500px, -500px)' }}> {/* Center origin offset hack? No. point is 0,0 */}
+                                {/* Actually, Map uses coordinates directly? check Map component. 
+                                    Usually SVG coordinates match pixel coordinates. 
+                                    So if I translate by -x, -y, the point (x,y) moves to (0,0).
+                                    (0,0) is `absolute left-1/2 bottom-20` of the screen.
+                                */}
+                                <div style={{ transform: 'translate(0, 0)' }}> {/* Reset arbitrary centering */}
+                                    <Map
+                                        mapData={mapData}
+                                        activeFloorId={activeFloorId}
+                                        startPoi={startPoi}
+                                        endPoi={endPoi}
+                                        path={path}
+                                        onPoiClick={onPoiClick}
+                                        currentPosition={currentPosition}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* HUD - Directions */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+                        <div className="w-16 h-16 rounded-full bg-blue-600 border-4 border-white shadow-xl flex items-center justify-center animate-pulse z-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 text-white">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+                            </svg>
+                        </div>
+                        <span className="text-slate-600 font-bold bg-white/80 px-3 py-1 rounded-full text-xs shadow-sm uppercase tracking-wider backdrop-blur">
+                            Tap 'Play' to Walk
+                        </span>
+                    </div>
+                </div>
+            )}
             {/* 3D MODE */}
             {viewMode === ViewMode.INDOOR_3D && (
                 <div className="flex-1 overflow-hidden bg-slate-800 perspective-[2000px] flex items-center justify-center relative">

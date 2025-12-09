@@ -276,7 +276,8 @@ export const findPath = (
     start: Point,
     end: Point,
     mapData: MapData,
-    walkableGrids: Map<string, Set<string>>
+    walkableGrids: Map<string, Set<string>>,
+    isAccessible: boolean = false
 ): Point[] | null => {
 
     // 1. Same Floor
@@ -294,10 +295,14 @@ export const findPath = (
 
     // Find elevators/stairs that exist on BOTH floors (matching by proximity or name/id conventions)
     // Convention: Portals have same X,Y roughly.
-    // Let's filter POIs of type ELEVATOR/STAIRS
 
-    const startPortals = startFloor.pois.filter(p => p.type === POIType.ELEVATOR || p.type === POIType.STAIRS);
-    const endPortals = endFloor.pois.filter(p => p.type === POIType.ELEVATOR || p.type === POIType.STAIRS);
+    // Filter Portals based on Accessibility
+    const allowedTypes = isAccessible
+        ? [POIType.ELEVATOR]
+        : [POIType.ELEVATOR, POIType.STAIRS];
+
+    const startPortals = startFloor.pois.filter(p => allowedTypes.includes(p.type));
+    const endPortals = endFloor.pois.filter(p => allowedTypes.includes(p.type));
 
     let bestPath: Point[] | null = null;
     let minLength = Infinity;
