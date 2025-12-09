@@ -114,11 +114,11 @@ function App() {
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-hidden text-gray-900 font-sans">
-      {/* Sidebar / Control Panel */}
-      <div className="w-full md:w-96 bg-white shadow-xl z-20 flex flex-col border-r border-gray-200">
-        <div className="p-6 bg-blue-600 text-white">
-          <h1 className="text-2xl font-bold tracking-tight">SCB Wayfinder</h1>
-          <p className="text-blue-100 text-sm mt-1">SCB Medical Indoor Navigation</p>
+      {/* Sidebar / Control Panel - Order 2 on mobile (bottom), Order 1 on desktop (left) */}
+      <div className="w-full md:w-96 h-[45vh] md:h-full bg-white shadow-xl z-20 flex flex-col border-r border-gray-200 order-2 md:order-1">
+        <div className="p-4 md:p-6 bg-blue-600 text-white shrink-0">
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight">SCB Wayfinder</h1>
+          <p className="text-blue-100 text-xs md:text-sm mt-1">SCB Medical Indoor Navigation</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -141,13 +141,13 @@ function App() {
           />
         </div>
 
-        <div className="p-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 text-center">
+        <div className="p-2 md:p-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 text-center shrink-0">
           &copy; 2025 SCB Medical
         </div>
       </div>
 
-      {/* Main Map Area */}
-      <div className="flex-1 relative bg-gray-100 h-full">
+      {/* Main Map Area - Order 1 on mobile (top), Order 2 on desktop (right) */}
+      <div className="flex-1 relative bg-gray-100 h-full order-1 md:order-2">
         <MapView
           mapData={MAP_DATA}
           startPoi={startPoi}

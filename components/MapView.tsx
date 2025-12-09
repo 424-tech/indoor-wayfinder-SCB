@@ -4,6 +4,7 @@ import Map from './Map';
 import { MapContainer, TileLayer, ImageOverlay, useMap, Rectangle, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
 // Fix Leaflet icon issue safely
 try {
@@ -101,18 +102,61 @@ const MapView: React.FC<MapViewProps> = ({
 
             {/* 2D MODE */}
             {viewMode === ViewMode.INDOOR_2D && (
-                <div className="flex-1 overflow-hidden p-8 bg-slate-100">
-                    <div className="w-full h-full shadow-2xl relative">
-                        <Map
-                            mapData={mapData}
-                            activeFloorId={activeFloorId}
-                            startPoi={startPoi}
-                            endPoi={endPoi}
-                            path={path}
-                            onPoiClick={onPoiClick}
-                            currentPosition={currentPosition}
-                        />
-                    </div>
+                <div className="flex-1 overflow-hidden p-8 bg-slate-100 flex flex-col relative">
+                    {/* React Zoom Pan Pinch Wrapper */}
+                    <TransformWrapper
+                        initialScale={1}
+                        minScale={0.5}
+                        maxScale={4}
+                        centerOnInit={true}
+                        wheel={{ step: 0.1 }}
+                    >
+                        {({ zoomIn, zoomOut, resetTransform }) => (
+                            <React.Fragment>
+                                {/* Zoom Controls */}
+                                <div className="absolute bottom-8 right-8 z-[1000] flex flex-col gap-2">
+                                    <button
+                                        onClick={() => zoomIn()}
+                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xl font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        title="Zoom In"
+                                    >
+                                        +
+                                    </button>
+                                    <button
+                                        onClick={() => zoomOut()}
+                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xl font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        title="Zoom Out"
+                                    >
+                                        -
+                                    </button>
+                                    <button
+                                        onClick={() => resetTransform()}
+                                        className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-50 active:bg-gray-100"
+                                        title="Reset View"
+                                    >
+                                        Fit
+                                    </button>
+                                </div>
+
+                                <TransformComponent
+                                    wrapperStyle={{ width: "100%", height: "100%" }}
+                                    contentStyle={{ width: "100%", height: "100%" }}
+                                >
+                                    <div className="w-full h-full shadow-2xl relative">
+                                        <Map
+                                            mapData={mapData}
+                                            activeFloorId={activeFloorId}
+                                            startPoi={startPoi}
+                                            endPoi={endPoi}
+                                            path={path}
+                                            onPoiClick={onPoiClick}
+                                            currentPosition={currentPosition}
+                                        />
+                                    </div>
+                                </TransformComponent>
+                            </React.Fragment>
+                        )}
+                    </TransformWrapper>
                 </div>
             )}
 
