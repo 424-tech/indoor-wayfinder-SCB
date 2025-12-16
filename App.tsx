@@ -21,6 +21,7 @@ function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isAccessible, setIsAccessible] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
 
   // Animation state - keeping currentPosition for manual navigation
   const [currentPosition, setCurrentPosition] = useState<Point | null>(null);
@@ -161,11 +162,39 @@ function App() {
     }
   }, [distanceTraveled, path, activeFloorId, hasArrived]);
 
-  // Toggle play/pause - REMOVED AUTO-ANIMATION, keeping for compatibility
-  const handlePlayPause = () => {
-    // This button is now just for show/compatibility
-    // Navigation is fully manual via forward/backward buttons
-    console.log('Play/Pause clicked - navigation is manual');
+  // Simulation Loop
+  useEffect(() => {
+    let animationFrame: number;
+
+    if (isSimulating && path && !hasArrived) {
+      const step = () => {
+        setDistanceTraveled(prev => {
+          const totalLength = path.length * 10;
+          if (prev >= totalLength) {
+            setIsSimulating(false);
+            setHasArrived(true);
+            return totalLength;
+          }
+          // Speed: 2 units per frame (approx 120 units per second)
+          // Path segments are roughly 10-20 units. 
+          // 400 lines of code -> 16000 bytes. 
+          // Let's go with a speed that crosses the map in ~10 seconds.
+          return prev + 1.5;
+        });
+        animationFrame = requestAnimationFrame(step);
+      };
+      animationFrame = requestAnimationFrame(step);
+    }
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [isSimulating, path, hasArrived]);
+
+  const handleToggleSimulation = () => {
+    if (hasArrived) {
+      setDistanceTraveled(0);
+      setHasArrived(false);
+    }
+    setIsSimulating(!isSimulating);
   };
 
 
@@ -215,14 +244,6 @@ function App() {
 
       {/* Category Quick-Access Panel */}
       <CategoryPanel onCategorySelect={handleCategorySelect} />
-
-      {/* Map Controls (Always visible) */}
-      <MapControls
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-        onRecenter={handleRecenter}
-        bearing={0}
-      />
 
       {/* 3. Floating Glass Panel - Left Side */}
       <div className={`absolute top-4 left-4 bottom-4 w-full md:w-[400px] z-20 flex flex-col pointer-events-none transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%]'}`}>
@@ -294,10 +315,13 @@ function App() {
                     setActiveFloorId(startPoi.position.floorId || 'floor-1');
                     setCurrentPosition(foundPath[0]);
                     setDistanceTraveled(0);
-                    // Navigation is manual - user uses forward/backward buttons
+                    // Manual start for simulation
+                    // setIsSimulating(true);
                   }
                 }
               }}
+              isSimulating={isSimulating}
+              onToggleSimulation={handleToggleSimulation}
             />
           </div>
 
@@ -314,6 +338,8 @@ function App() {
           destinationName={endPoi.name}
           onDismiss={() => {
             setHasArrived(false);
+            setPath(null); // Clear path to prevent re-triggering arrival
+            setDistanceTraveled(0);
             setSidebarOpen(true);
           }}
         />

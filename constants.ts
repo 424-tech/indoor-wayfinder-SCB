@@ -30,6 +30,12 @@ const FLOOR_1_POIS = [
 ];
 
 const FLOOR_1_WALLS = [
+  // Outer Boundary
+  { start: { x: 0, y: 0 }, end: { x: 2400, y: 0 } },
+  { start: { x: 2400, y: 0 }, end: { x: 2400, y: 1600 } },
+  { start: { x: 2400, y: 1600 }, end: { x: 0, y: 1600 } },
+  { start: { x: 0, y: 1600 }, end: { x: 0, y: 0 } },
+
   // --- Left Wing ---
   // Outer Walls
   { start: { x: 50, y: 150 }, end: { x: 50, y: 550 } },
@@ -84,7 +90,10 @@ const FLOOR_1_WALLS = [
   // Central Elevator Block
   { start: { x: 700, y: 425 }, end: { x: 850, y: 425 } },
   { start: { x: 700, y: 575 }, end: { x: 850, y: 575 } },
-  { start: { x: 700, y: 425 }, end: { x: 700, y: 575 } },
+  // Open Left Wall (Doorway)
+  { start: { x: 700, y: 425 }, end: { x: 700, y: 450 } },
+  { start: { x: 700, y: 550 }, end: { x: 700, y: 575 } },
+  // Right Wall
   { start: { x: 850, y: 425 }, end: { x: 850, y: 575 } },
 
   // Labs Block (Radiology, CT, Ultrasound)
@@ -135,6 +144,12 @@ const FLOOR_2_POIS = [
 ];
 
 const FLOOR_2_WALLS = [
+  // Outer Boundary
+  { start: { x: 0, y: 0 }, end: { x: 2400, y: 0 } },
+  { start: { x: 2400, y: 0 }, end: { x: 2400, y: 1600 } },
+  { start: { x: 2400, y: 1600 }, end: { x: 0, y: 1600 } },
+  { start: { x: 0, y: 1600 }, end: { x: 0, y: 0 } },
+
   // Outer Shell
   { start: { x: 50, y: 150 }, end: { x: 50, y: 550 } },
   { start: { x: 50, y: 150 }, end: { x: 1750, y: 150 } },
@@ -168,6 +183,12 @@ const FLOOR_3_POIS = [
 ];
 
 const FLOOR_3_WALLS = [
+  // Outer Boundary
+  { start: { x: 0, y: 0 }, end: { x: 2400, y: 0 } },
+  { start: { x: 2400, y: 0 }, end: { x: 2400, y: 1600 } },
+  { start: { x: 2400, y: 1600 }, end: { x: 0, y: 1600 } },
+  { start: { x: 0, y: 1600 }, end: { x: 0, y: 0 } },
+
   // Smaller footprint for top floor
   { start: { x: 200, y: 200 }, end: { x: 1600, y: 200 } },
   { start: { x: 1600, y: 200 }, end: { x: 1600, y: 900 } },
@@ -183,8 +204,8 @@ const FLOOR_3_WALLS = [
 
 
 export const MAP_DATA: MapData = {
-  width: 2000,
-  height: 1200,
+  width: 2400,
+  height: 1600,
   gridResolution: 10,
   floors: [
     {

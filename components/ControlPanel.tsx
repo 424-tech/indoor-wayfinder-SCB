@@ -21,6 +21,8 @@ interface ControlPanelProps {
   isAccessible?: boolean;
   onAccessibleChange?: (val: boolean) => void;
   onEmergencyClick?: () => void;
+  isSimulating?: boolean;
+  onToggleSimulation?: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -42,6 +44,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   isAccessible = false,
   onAccessibleChange,
   onEmergencyClick,
+  isSimulating = false,
+  onToggleSimulation
 }) => {
   const canStepForward = path && distanceTraveled < totalPathLength;
   const canStepBackward = path && distanceTraveled > 0;
@@ -69,13 +73,25 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       {/* Search / Filter */}
       <div className="mb-6 space-y-3">
         <label className="text-xs font-bold text-blue-600 uppercase tracking-widest">Quick Find</label>
-        <input
-          type="text"
-          placeholder="Search locations..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="block w-full rounded-xl py-3 px-4 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder-slate-500 text-slate-800 text-sm shadow-sm transition-all"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search locations..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="block w-full rounded-xl py-3 px-4 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder-slate-500 text-slate-800 text-sm shadow-sm transition-all pr-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+              </svg>
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-3 gap-2">
           <button onClick={() => onSearchChange(POIType.RESTROOM)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Restroom</button>
           <button onClick={() => onSearchChange(POIType.CAFE)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Cafe</button>
@@ -177,21 +193,42 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
           </div>
 
-          {/* Manual Controls - Always visible for turn-by-turn navigation */}
-          <div className="flex justify-between space-x-3">
+          <div className="flex justify-between space-x-2">
+            <button
+              onClick={onToggleSimulation}
+              className={`flex-1 py-3 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 ${isSimulating
+                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
+            >
+              {isSimulating ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                  </svg>
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                  </svg>
+                  <span>Walk</span>
+                </>
+              )}
+            </button>
             <button
               onClick={onStepBackward}
               disabled={!canStepBackward}
-              className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
+              className="bg-white border-2 border-slate-200 text-slate-600 rounded-xl p-3 hover:bg-slate-50 disabled:opacity-50"
             >
-              ← Back
+              ←
             </button>
             <button
               onClick={onStepForward}
               disabled={!canStepForward}
-              className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
+              className="bg-white border-2 border-slate-200 text-slate-600 rounded-xl p-3 hover:bg-slate-50 disabled:opacity-50"
             >
-              Forward →
+              →
             </button>
           </div>
 

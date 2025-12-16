@@ -72,14 +72,14 @@ const MapView: React.FC<MapViewProps> = ({
     return (
         <div className="flex flex-col h-full relative">
             {/* View Controls */}
-            <div className="absolute top-4 right-4 z-[1000] flex gap-2 bg-white p-2 rounded-lg shadow-md">
+            <div className="absolute top-4 right-4 z-[1000] flex gap-2 bg-white/90 backdrop-blur p-1.5 rounded-xl shadow-lg border border-white/50">
                 {Object.values(ViewMode).map(mode => (
                     <button
                         key={mode}
                         onClick={() => setViewMode(mode)}
-                        className={`px-3 py-1 rounded text-sm font-medium transition-colors ${viewMode === mode
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${viewMode === mode
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : 'text-slate-600 hover:bg-slate-100'
                             }`}
                     >
                         {mode}
@@ -87,16 +87,16 @@ const MapView: React.FC<MapViewProps> = ({
                 ))}
             </div>
 
-            {/* Floor Selector (Visible in 2D and 3D) */}
+            {/* Floor Selector (Visible in 2D and 3D) - MOVED TO RIGHT-36 TO AVOID QUICK ACCESS MENU */}
             {(viewMode !== ViewMode.OUTDOOR) && (
-                <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 bg-white p-2 rounded-lg shadow-md">
+                <div className="absolute top-20 right-36 z-[3000] flex flex-col gap-2 bg-white p-2 rounded-xl shadow-lg border border-slate-200">
                     {mapData.floors.map(floor => (
                         <button
                             key={floor.id}
                             onClick={() => onFloorChange(floor.id)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-full font-bold transition-all ${activeFloorId === floor.id
-                                ? 'bg-blue-600 text-white scale-110 shadow-lg'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            className={`w-10 h-10 flex items-center justify-center rounded-lg font-bold text-sm transition-all ${activeFloorId === floor.id
+                                ? 'bg-blue-600 text-white shadow-md scale-105'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
                         >
                             {floor.level}
@@ -107,36 +107,47 @@ const MapView: React.FC<MapViewProps> = ({
 
             {/* 2D MODE */}
             {viewMode === ViewMode.INDOOR_2D && (
-                <div className="flex-1 overflow-hidden p-8 bg-slate-100 flex flex-col relative">
+                <div className="flex-1 overflow-hidden bg-slate-100 flex flex-col relative w-full h-full">
                     {/* React Zoom Pan Pinch Wrapper */}
                     <TransformWrapper
-                        initialScale={0.5}
-                        minScale={0.1}
+                        initialScale={0.8}
+                        minScale={0.2}
                         maxScale={8}
                         centerOnInit={true}
                         wheel={{ step: 0.1 }}
+                        alignmentAnimation={{ sizeX: 0, sizeY: 0 }}
                     >
                         {({ zoomIn, zoomOut, resetTransform }) => (
                             <React.Fragment>
-                                {/* Zoom Controls */}
-                                <div className="absolute bottom-8 right-8 z-[1000] flex flex-col gap-2">
+                                {/* Zoom Controls - moved slightly up to avoid covering footer if any */}
+                                <div className="absolute bottom-10 right-36 z-[1000] flex flex-col gap-2 pointer-events-auto">
+                                    <button
+                                        onClick={() => resetTransform()}
+                                        className="w-12 h-12 bg-white rounded-xl shadow-xl border border-slate-100 text-slate-700 flex flex-col items-center justify-center hover:bg-slate-50 active:scale-95 transition-all group"
+                                        title="Reset North"
+                                    >
+                                        <div className="text-red-500 font-bold text-lg leading-none">N</div>
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-red-500 transition-colors">
+                                            <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v16.19l6.22-6.22a.75.75 0 111.06 1.06l-7.5 7.5a.75.75 0 01-1.06 0l-7.5-7.5a.75.75 0 111.06-1.06l6.22 6.22V3a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
                                     <button
                                         onClick={() => zoomIn()}
-                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        className="w-12 h-12 bg-white rounded-xl shadow-xl border border-slate-100 text-slate-700 flex items-center justify-center text-2xl font-light hover:bg-slate-50 active:scale-95 transition-all"
                                         title="Zoom In"
                                     >
                                         +
                                     </button>
                                     <button
                                         onClick={() => zoomOut()}
-                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        className="w-12 h-12 bg-white rounded-xl shadow-xl border border-slate-100 text-slate-700 flex items-center justify-center text-2xl font-light hover:bg-slate-50 active:scale-95 transition-all"
                                         title="Zoom Out"
                                     >
                                         -
                                     </button>
                                     <button
                                         onClick={() => resetTransform()}
-                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xs font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        className="w-12 h-12 bg-white rounded-xl shadow-xl border border-slate-100 text-slate-700 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 active:scale-95 transition-all"
                                         title="Reset View"
                                     >
                                         Fit
