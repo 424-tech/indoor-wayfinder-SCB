@@ -5,6 +5,8 @@ import MapView from './components/MapView';
 import ControlPanel from './components/ControlPanel';
 import NavigationHUD from './components/NavigationHUD';
 import ArrivalScreen from './components/ArrivalScreen';
+import CategoryPanel from './components/CategoryPanel';
+import MapControls from './components/MapControls';
 import { findPath, createWalkableGrids, generateInstructions } from './services/pathfinding';
 
 function App() {
@@ -20,10 +22,8 @@ function App() {
   const [isAccessible, setIsAccessible] = useState(false);
   const [hasArrived, setHasArrived] = useState(false);
 
-  // Animation state
+  // Animation state - keeping currentPosition for manual navigation
   const [currentPosition, setCurrentPosition] = useState<Point | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const animationFrameRef = useRef<number | null>(null);
 
   // ... rest of lines
 
@@ -73,9 +73,8 @@ function App() {
           // Ensure we are viewing the start floor
           setActiveFloorId(startPoi.position.floorId || 'floor-1');
 
-          // Start Animation Logic
+          // Set initial position for manual navigation
           setCurrentPosition(foundPath[0]);
-          setIsAnimating(true);
           setDistanceTraveled(0);
         } else {
           alert('No path found! Are the points connected?');
@@ -99,6 +98,51 @@ function App() {
     setDistanceTraveled(prev => Math.max(prev - 20, 0));
   };
 
+  // Category Quick Access Handler
+  const handleCategorySelect = useCallback((poiId: string) => {
+    // Set Main Entrance as start if not already set
+    if (!startPoiId) {
+      setStartPoiId('main-entrance');
+    }
+
+    // Set selected category as destination
+    setEndPoiId(poiId);
+
+    // Trigger pathfinding
+    setTimeout(() => {
+      const startPoi = allPois.find(p => p.id === (startPoiId || 'main-entrance'));
+      const endPoi = allPois.find(p => p.id === poiId);
+
+      if (startPoi && endPoi) {
+        const foundPath = findPath(startPoi.position, endPoi.position, MAP_DATA, walkableGrids, isAccessible);
+        if (foundPath) {
+          setPath(foundPath);
+          setInstructions(generateInstructions(foundPath, MAP_DATA));
+          setActiveFloorId(startPoi.position.floorId || 'floor-1');
+          setCurrentPosition(foundPath[0]);
+          setDistanceTraveled(0);
+        }
+      }
+    }, 100);
+  }, [startPoiId, allPois, walkableGrids, isAccessible]);
+
+  // Map Controls Handlers
+  const handleZoomIn = () => {
+    console.log('Zoom In');
+  };
+
+  const handleZoomOut = () => {
+    console.log('Zoom Out');
+  };
+
+  const handleRecenter = () => {
+    if (path && path.length > 0) {
+      setActiveFloorId(path[0].floorId || 'floor-1');
+      setDistanceTraveled(0);
+      setCurrentPosition(path[0]);
+    }
+  };
+
   // Update position based on distanceTraveled (Simplified for demo)
   useEffect(() => {
     if (path && distanceTraveled >= 0) {
@@ -108,59 +152,22 @@ function App() {
         setCurrentPosition(path[index]);
         setActiveFloorId(path[index].floorId || activeFloorId);
       }
-    }
-  }, [distanceTraveled, path, activeFloorId]);
 
-  // Focus Mode: Auto-close sidebar
-  useEffect(() => {
-    if (isAnimating) {
-      setSidebarOpen(false);
-    }
-  }, [isAnimating]);
-
-  // Auto-walk animation loop
-  useEffect(() => {
-    if (!isAnimating || !path) return;
-
-    const totalLength = path.length * 10;
-    const SPEED = 1.5; // Units per frame (~90 units per second at 60fps)
-    let lastTime = performance.now();
-
-    const animate = (currentTime: number) => {
-      const deltaTime = currentTime - lastTime;
-      lastTime = currentTime;
-
-      setDistanceTraveled(prev => {
-        const next = prev + SPEED * (deltaTime / 16.67); // Normalize to ~60fps
-        if (next >= totalLength) {
-          setIsAnimating(false);
-          setHasArrived(true); // Trigger Success Screen
-          return totalLength;
-        }
-        return next;
-      });
-
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animationFrameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      // Check if arrived at destination
+      const totalLength = path.length * 10;
+      if (distanceTraveled >= totalLength && !hasArrived) {
+        setHasArrived(true);
       }
-    };
-  }, [isAnimating, path]);
-
-  // Toggle play/pause
-  const handlePlayPause = () => {
-    if (!path) return;
-    if (distanceTraveled >= path.length * 10) {
-      // Reset to start if at end
-      setDistanceTraveled(0);
     }
-    setIsAnimating(prev => !prev);
+  }, [distanceTraveled, path, activeFloorId, hasArrived]);
+
+  // Toggle play/pause - REMOVED AUTO-ANIMATION, keeping for compatibility
+  const handlePlayPause = () => {
+    // This button is now just for show/compatibility
+    // Navigation is fully manual via forward/backward buttons
+    console.log('Play/Pause clicked - navigation is manual');
   };
+
 
 
   const startPoi = allPois.find((p) => p.id === startPoiId) || null;
@@ -193,18 +200,8 @@ function App() {
         />
       </div>
 
-      {/* Focus Mode HUD */}
-      {isAnimating && (
-        <NavigationHUD
-          activeInstruction={instructions[Math.min(Math.floor((distanceTraveled / (path ? path.length * 10 : 1)) * instructions.length), instructions.length - 1)]}
-          totalDistanceRemaining={(path ? path.length * 10 : 0) - distanceTraveled}
-          distanceToNext={20} // Placeholder
-          onStopNavigation={() => { setIsAnimating(false); setSidebarOpen(true); }}
-        />
-      )}
-
-      {/* Re-open Button (Visible when closed AND NOT navigating) */}
-      {!isAnimating && (
+      {/* Re-open Button (Visible when closed) */}
+      {(
         <button
           onClick={() => setSidebarOpen(true)}
           className={`absolute top-6 left-6 z-10 glass-button p-3 rounded-full shadow-lg transition-all duration-300 ${!isSidebarOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}
@@ -215,6 +212,17 @@ function App() {
           </svg>
         </button>
       )}
+
+      {/* Category Quick-Access Panel */}
+      <CategoryPanel onCategorySelect={handleCategorySelect} />
+
+      {/* Map Controls (Always visible) */}
+      <MapControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onRecenter={handleRecenter}
+        bearing={0}
+      />
 
       {/* 3. Floating Glass Panel - Left Side */}
       <div className={`absolute top-4 left-4 bottom-4 w-full md:w-[400px] z-20 flex flex-col pointer-events-none transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%]'}`}>
@@ -267,8 +275,6 @@ function App() {
               onSearchChange={setSearchQuery}
               isAccessible={isAccessible}
               onAccessibleChange={setIsAccessible}
-              isAnimating={isAnimating}
-              onPlayPause={handlePlayPause}
               onEmergencyClick={() => {
                 const startId = 'main-entrance';
                 const endId = 'emergency-west';
@@ -288,9 +294,7 @@ function App() {
                     setActiveFloorId(startPoi.position.floorId || 'floor-1');
                     setCurrentPosition(foundPath[0]);
                     setDistanceTraveled(0);
-                    // Optional: Auto-start walking? Maybe waiting for user to click "Play" is safer/better UX so they can orient themselves.
-                    // But the prompt said "Go to Emergency".
-                    // Let's leaves isAnimating false so they see the overview first.
+                    // Navigation is manual - user uses forward/backward buttons
                   }
                 }
               }}

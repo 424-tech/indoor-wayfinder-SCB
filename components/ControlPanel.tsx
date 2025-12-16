@@ -20,8 +20,6 @@ interface ControlPanelProps {
   onSearchChange: (query: string) => void;
   isAccessible?: boolean;
   onAccessibleChange?: (val: boolean) => void;
-  isAnimating?: boolean;
-  onPlayPause?: () => void;
   onEmergencyClick?: () => void;
 }
 
@@ -43,8 +41,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onSearchChange,
   isAccessible = false,
   onAccessibleChange,
-  isAnimating = false,
-  onPlayPause,
   onEmergencyClick,
 }) => {
   const canStepForward = path && distanceTraveled < totalPathLength;
@@ -78,7 +74,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           placeholder="Search locations..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="glass-input block w-full rounded-xl py-3 px-4 focus:ring-2 focus:ring-blue-500 placeholder-slate-400 text-sm shadow-sm"
+          className="block w-full rounded-xl py-3 px-4 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder-slate-500 text-slate-800 text-sm shadow-sm transition-all"
         />
         <div className="grid grid-cols-3 gap-2">
           <button onClick={() => onSearchChange(POIType.RESTROOM)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Restroom</button>
@@ -95,12 +91,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
         <div className="space-y-4">
           <div className="relative">
-            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-green-500 shadow-sm"></span>
+            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-green-500 shadow-sm z-10"></span>
             <select
               id="start-poi"
               value={startPoiId || ''}
               onChange={(e) => onStartChange(e.target.value)}
-              className="glass-input block w-full rounded-xl py-3 pl-8 pr-10 focus:ring-2 focus:ring-blue-500 text-sm appearance-none cursor-pointer"
+              className="block w-full rounded-xl py-3 pl-8 pr-10 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-slate-800 text-sm appearance-none cursor-pointer shadow-sm transition-all"
             >
               <option value="" disabled className="text-slate-400">Start Location</option>
               {pois.map((poi) => (
@@ -112,12 +108,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
 
           <div className="relative">
-            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-red-500 shadow-sm"></span>
+            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-red-500 shadow-sm z-10"></span>
             <select
               id="end-poi"
               value={endPoiId || ''}
               onChange={(e) => onEndChange(e.target.value)}
-              className="glass-input block w-full rounded-xl py-3 pl-8 pr-10 focus:ring-2 focus:ring-blue-500 text-sm appearance-none cursor-pointer"
+              className="block w-full rounded-xl py-3 pl-8 pr-10 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-slate-800 text-sm appearance-none cursor-pointer shadow-sm transition-all"
             >
               <option value="" disabled className="text-slate-400">Destination</option>
               {pois.map((poi) => (
@@ -181,40 +177,18 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
           </div>
 
-          {/* Play/Pause Button */}
-          <button
-            onClick={onPlayPause}
-            className="primary-button w-full py-4 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center space-x-2 shadow-lg shadow-blue-500/20"
-          >
-            {isAnimating ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
-                </svg>
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                  <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                </svg>
-                <span>Play Route</span>
-              </>
-            )}
-          </button>
-
-          {/* Manual Controls */}
+          {/* Manual Controls - Always visible for turn-by-turn navigation */}
           <div className="flex justify-between space-x-3">
             <button
               onClick={onStepBackward}
-              disabled={!canStepBackward || isAnimating}
+              disabled={!canStepBackward}
               className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
             >
               ← Back
             </button>
             <button
               onClick={onStepForward}
-              disabled={!canStepForward || isAnimating}
+              disabled={!canStepForward}
               className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
             >
               Forward →
