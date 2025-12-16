@@ -18,6 +18,9 @@ interface ControlPanelProps {
   onStepBackward: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  isAccessible?: boolean;
+  onAccessibleChange?: (val: boolean) => void;
+  onEmergencyClick?: () => void;
 }
 
 const ControlPanel: React.FC<ControlPanelProps> = ({
@@ -36,51 +39,85 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onStepBackward,
   searchQuery,
   onSearchChange,
+  isAccessible = false,
+  onAccessibleChange,
+  onEmergencyClick,
 }) => {
   const canStepForward = path && distanceTraveled < totalPathLength;
   const canStepBackward = path && distanceTraveled > 0;
 
   return (
-    <div className="bg-gray-800 p-6 rounded-lg shadow-2xl border border-gray-700 h-full flex flex-col">
-      <h1 className="text-3xl font-bold mb-2 text-indigo-400">Indoor Wayfinder</h1>
-      <p className="text-gray-400 mb-6">Select your start and end points or find a place of interest.</p>
+    <div className="h-full flex flex-col">
+      {/* 0. Emergency Panic Button */}
+      <div className="mb-6">
+        <button
+          onClick={onEmergencyClick}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-4 px-4 rounded-xl shadow-lg shadow-red-500/30 transform transition-all active:scale-95 flex items-center justify-between group"
+        >
+          <div className="flex flex-col items-start">
+            <span className="text-lg uppercase tracking-wider">Emergency</span>
+            <span className="text-[10px] font-medium opacity-80 group-hover:opacity-100">Tap for immediate help</span>
+          </div>
+          <div className="bg-white/20 p-2 rounded-full animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+        </button>
+      </div>
 
-      <div className="space-y-6 flex-grow">
-        {/* Route Planning */}
+      {/* Search / Filter */}
+      <div className="mb-6 space-y-3">
+        <label className="text-xs font-bold text-blue-600 uppercase tracking-widest">Quick Find</label>
+        <input
+          type="text"
+          placeholder="Search locations..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="block w-full rounded-xl py-3 px-4 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 placeholder-slate-500 text-slate-800 text-sm shadow-sm transition-all"
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={() => onSearchChange(POIType.RESTROOM)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Restroom</button>
+          <button onClick={() => onSearchChange(POIType.CAFE)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Cafe</button>
+          <button onClick={() => onSearchChange(POIType.INFO)} className="glass-button text-xs py-2 rounded-lg hover:bg-blue-50 text-slate-600 font-medium">Info</button>
+        </div>
+      </div>
+
+      <div className="h-px bg-slate-200 my-2"></div>
+
+      {/* Route Planning */}
+      <div className="space-y-5 flex-grow mt-4">
+        <label className="text-xs font-bold text-blue-600 uppercase tracking-widest">Navigation</label>
+
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-200 border-b border-gray-600 pb-2">Plan a Route</h2>
-          <div>
-            <label htmlFor="start-poi" className="block text-sm font-medium text-gray-300 mb-2">
-              Start Location
-            </label>
+          <div className="relative">
+            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-green-500 shadow-sm z-10"></span>
             <select
               id="start-poi"
               value={startPoiId || ''}
               onChange={(e) => onStartChange(e.target.value)}
-              className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-3 px-4 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-white"
+              className="block w-full rounded-xl py-3 pl-8 pr-10 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-slate-800 text-sm appearance-none cursor-pointer shadow-sm transition-all"
             >
-              <option value="" disabled>Choose a starting point</option>
+              <option value="" disabled className="text-slate-400">Start Location</option>
               {pois.map((poi) => (
-                <option key={poi.id} value={poi.id} disabled={poi.id === endPoiId}>
+                <option key={poi.id} value={poi.id} disabled={poi.id === endPoiId} className="text-slate-800">
                   {poi.name}
                 </option>
               ))}
             </select>
           </div>
 
-          <div>
-            <label htmlFor="end-poi" className="block text-sm font-medium text-gray-300 mb-2">
-              Destination
-            </label>
+          <div className="relative">
+            <span className="absolute left-3 top-3.5 w-2 h-2 rounded-full bg-red-500 shadow-sm z-10"></span>
             <select
               id="end-poi"
               value={endPoiId || ''}
               onChange={(e) => onEndChange(e.target.value)}
-              className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-3 px-4 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-white"
+              className="block w-full rounded-xl py-3 pl-8 pr-10 bg-white border-2 border-blue-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-slate-800 text-sm appearance-none cursor-pointer shadow-sm transition-all"
             >
-              <option value="" disabled>Choose a destination</option>
+              <option value="" disabled className="text-slate-400">Destination</option>
               {pois.map((poi) => (
-                <option key={poi.id} value={poi.id} disabled={poi.id === startPoiId}>
+                <option key={poi.id} value={poi.id} disabled={poi.id === startPoiId} className="text-slate-800">
                   {poi.name}
                 </option>
               ))}
@@ -88,65 +125,84 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           </div>
         </div>
 
-        {/* Find a Place */}
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-200 border-b border-gray-600 pb-2">Find a Place</h2>
-          <input
-            type="text"
-            placeholder="e.g., Cafe or Radiology"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="block w-full bg-gray-700 border border-gray-600 rounded-md shadow-sm py-3 px-4 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-white"
-          />
-          <div className="flex space-x-2">
-            <button onClick={() => onSearchChange(POIType.RESTROOM)} className="flex-1 text-sm py-2 px-2 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">Restroom</button>
-            <button onClick={() => onSearchChange(POIType.CAFE)} className="flex-1 text-sm py-2 px-2 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">Cafe</button>
-            <button onClick={() => onSearchChange(POIType.INFO)} className="flex-1 text-sm py-2 px-2 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors">Info</button>
+        {/* Accessibility Toggle */}
+        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className={`p-1.5 rounded-lg ${isAccessible ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'} transition-colors duration-300`}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" />
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-slate-700">Wheelchair Accessible</span>
+              <span className="text-[10px] text-slate-500 font-medium">Avoids stairs</span>
+            </div>
           </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" checked={isAccessible} onChange={(e) => onAccessibleChange?.(e.target.checked)} className="sr-only peer" />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
         </div>
 
+        <button
+          onClick={onFindPath}
+          disabled={!startPoiId || !endPoiId || isPathfinding}
+          className="primary-button w-full py-4 rounded-xl text-sm font-bold uppercase tracking-wide flex items-center justify-center space-x-2 disabled:bg-slate-300"
+        >
+          {isPathfinding ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>Calculating...</span>
+            </>
+          ) : (
+            <span>Start Navigation</span>
+          )}
+        </button>
       </div>
 
-      <button
-        onClick={onFindPath}
-        disabled={!startPoiId || !endPoiId || isPathfinding}
-        className="w-full flex justify-center py-4 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors duration-200 mt-4"
-      >
-        {isPathfinding ? 'Calculating...' : 'Find Path'}
-      </button>
 
       {path && path.length > 0 && (
-        <div className="mt-4 space-y-3">
-          <p className="text-center text-gray-400 text-sm" aria-live="polite">
-            Distance: {Math.round(distanceTraveled)} ft / {Math.round(totalPathLength)} ft
-          </p>
-          <div className="flex justify-between space-x-4">
+        <div className="mt-6 space-y-4 animate-fade-in">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 shadow-sm flex justify-between items-center">
+            <div>
+              <span className="block text-xs text-slate-500 font-medium uppercase tracking-wide">Total Distance</span>
+              <span className="text-lg font-bold text-slate-800">{Math.round(totalPathLength)} <span className="text-sm font-normal text-slate-500">ft</span></span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 text-right font-medium uppercase tracking-wide">Progress</span>
+              <span className="text-lg font-bold text-blue-600">{Math.round((distanceTraveled / totalPathLength) * 100)}%</span>
+            </div>
+          </div>
+
+          {/* Manual Controls - Always visible for turn-by-turn navigation */}
+          <div className="flex justify-between space-x-3">
             <button
               onClick={onStepBackward}
               disabled={!canStepBackward}
-              aria-label="Move Backward"
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
             >
-              Move Backward
+              ← Back
             </button>
             <button
               onClick={onStepForward}
               disabled={!canStepForward}
-              aria-label="Move Forward"
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-400 disabled:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="glass-button flex-1 py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-slate-600 hover:text-slate-800 bg-white shadow-sm"
             >
-              Move Forward
+              Forward →
             </button>
           </div>
 
           {instructions && instructions.length > 0 && (
-            <div className="mt-4 border-t border-gray-600 pt-4">
-              <h3 className="text-gray-200 font-semibold mb-2">Instructions</h3>
-              <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Directions</h3>
+              <ul className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
                 {instructions.map((inst, idx) => (
-                  <li key={idx} className="text-sm text-gray-300 flex items-start">
-                    <span className="mr-2 mt-1 w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
-                    <span>{inst.text}</span>
+                  <li key={idx} className="text-sm text-slate-700 flex items-start p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                    <span className="mr-3 mt-1.5 min-w-[6px] h-[6px] rounded-full bg-blue-500 shadow-sm" />
+                    <span className="leading-relaxed text-sm font-medium">{inst.text}</span>
                   </li>
                 ))}
               </ul>

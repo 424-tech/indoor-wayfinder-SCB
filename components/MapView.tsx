@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
 import { MapData, POI, Point } from '../types';
 import Map from './Map';
-import { MapContainer, TileLayer, ImageOverlay, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, ImageOverlay, useMap, Rectangle, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 
-// Fix Leaflet icon issue
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+// Fix Leaflet icon issue safely
+try {
+    // These might fail in some bundlers if the path isn't standard, better to handle safely
+    /* @ts-ignore */
+    // import icon from 'leaflet/dist/images/marker-icon.png';
+    // /* @ts-ignore */
+    // import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
+    // let DefaultIcon = L.icon({
+    //     iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
+    //     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+    //     iconSize: [25, 41],
+    //     iconAnchor: [12, 41]
+    // });
+    // L.Marker.prototype.options.icon = DefaultIcon;
+} catch (e) {
+    console.warn("Could not setup Leaflet icons", e);
+}
 
-L.Marker.prototype.options.icon = DefaultIcon;
+const getBearing = (start: Point, end: Point) => {
+    return (Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI) + 90;
+};
 
 interface MapViewProps {
     mapData: MapData;
@@ -31,6 +42,7 @@ interface MapViewProps {
 
 export enum ViewMode {
     INDOOR_2D = '2D',
+    WALK = 'Walk',
     INDOOR_3D = '3D',
     OUTDOOR = 'Outdoor'
 }
@@ -50,10 +62,12 @@ const MapView: React.FC<MapViewProps> = ({
 
     const activeFloor = mapData.floors.find(f => f.id === activeFloorId);
 
-    // MOCK Coordinates for the building (roughly corresponding to 2000x1200 px)
-    // Let's place it in a real location, e.g., a generic tech park
-    const bounds: L.LatLngBoundsExpression = [[40.712, -74.008], [40.714, -74.004]];
-    const center: L.LatLngExpression = [40.713, -74.006];
+    // SCB Medical College and Hospital, Cuttack Coordinates
+    const center: L.LatLngExpression = [20.4733, 85.8917];
+    const bounds: L.LatLngBoundsExpression = [
+        [20.4723, 85.8907], // South-West
+        [20.4743, 85.8927]  // North-East
+    ];
 
     return (
         <div className="flex flex-col h-full relative">
@@ -93,17 +107,130 @@ const MapView: React.FC<MapViewProps> = ({
 
             {/* 2D MODE */}
             {viewMode === ViewMode.INDOOR_2D && (
-                <div className="flex-1 overflow-hidden p-8 bg-slate-100">
-                    <div className="w-full h-full shadow-2xl relative">
-                        <Map
-                            mapData={mapData}
-                            activeFloorId={activeFloorId}
-                            startPoi={startPoi}
-                            endPoi={endPoi}
-                            path={path}
-                            onPoiClick={onPoiClick}
-                            currentPosition={currentPosition}
-                        />
+                <div className="flex-1 overflow-hidden p-8 bg-slate-100 flex flex-col relative">
+                    {/* React Zoom Pan Pinch Wrapper */}
+                    <TransformWrapper
+                        initialScale={0.5}
+                        minScale={0.1}
+                        maxScale={8}
+                        centerOnInit={true}
+                        wheel={{ step: 0.1 }}
+                    >
+                        {({ zoomIn, zoomOut, resetTransform }) => (
+                            <React.Fragment>
+                                {/* Zoom Controls */}
+                                <div className="absolute bottom-8 right-8 z-[1000] flex flex-col gap-2">
+                                    <button
+                                        onClick={() => zoomIn()}
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        title="Zoom In"
+                                    >
+                                        +
+                                    </button>
+                                    <button
+                                        onClick={() => zoomOut()}
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xl font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        title="Zoom Out"
+                                    >
+                                        -
+                                    </button>
+                                    <button
+                                        onClick={() => resetTransform()}
+                                        className="w-10 h-10 glass-button rounded-full shadow-lg flex items-center justify-center text-xs font-bold bg-white text-gray-800 hover:bg-white/90 active:bg-white"
+                                        title="Reset View"
+                                    >
+                                        Fit
+                                    </button>
+                                </div>
+
+                                <TransformComponent
+                                    wrapperStyle={{ width: "100%", height: "100%" }}
+                                    contentStyle={{ width: "100%", height: "100%" }}
+                                >
+                                    <div className="w-full h-full shadow-2xl relative">
+                                        <Map
+                                            mapData={mapData}
+                                            activeFloorId={activeFloorId}
+                                            startPoi={startPoi}
+                                            endPoi={endPoi}
+                                            path={path}
+                                            onPoiClick={onPoiClick}
+                                            currentPosition={currentPosition}
+                                        />
+                                    </div>
+                                </TransformComponent>
+                            </React.Fragment>
+                        )}
+                    </TransformWrapper>
+                </div>
+            )}
+
+            {/* WALK MODE - First Person Perspective */}
+            {viewMode === ViewMode.WALK && (
+                <div className="flex-1 overflow-hidden bg-gradient-to-b from-sky-200 to-slate-300 relative" style={{ perspective: '800px' }}>
+
+                    {/* Camera Container */}
+                    <div
+                        className="absolute left-1/2 bottom-20 w-0 h-0 transition-transform duration-500 ease-linear will-change-transform"
+                        style={{
+                            transformStyle: 'preserve-3d',
+                            transform: (() => {
+                                let bearing = 0;
+                                if (path && currentPosition) {
+                                    let minD = Infinity;
+                                    let closestPathPointIndex = -1;
+                                    for (let i = 0; i < path.length; i++) {
+                                        const d = Math.hypot(path[i].x - currentPosition.x, path[i].y - currentPosition.y);
+                                        if (d < minD) {
+                                            minD = d;
+                                            closestPathPointIndex = i;
+                                        }
+                                    }
+
+                                    if (closestPathPointIndex !== -1 && closestPathPointIndex < path.length - 1) {
+                                        const nextPoint = path[closestPathPointIndex + 1];
+                                        bearing = getBearing(currentPosition, nextPoint);
+                                    } else if (path.length > 1) {
+                                        bearing = getBearing(path[path.length - 2], path[path.length - 1]);
+                                    }
+                                }
+
+                                return `rotateX(60deg) rotateZ(${-bearing}deg)`;
+                            })()
+                        }}
+                    >
+                        {/* Map World Translated */}
+                        <div
+                            className="transition-transform duration-75 ease-linear will-change-transform"
+                            style={{
+                                transform: `translate(${-currentPosition?.x || 0}px, ${-currentPosition?.y || 0}px)`,
+                                width: 0, height: 0
+                            }}
+                        >
+                            <div style={{ width: mapData.width, height: mapData.height }}>
+                                <Map
+                                    mapData={mapData}
+                                    activeFloorId={activeFloorId}
+                                    startPoi={startPoi}
+                                    endPoi={endPoi}
+                                    path={path}
+                                    onPoiClick={onPoiClick}
+                                    currentPosition={currentPosition}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* HUD - Directions */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none">
+                        <div className="w-16 h-16 rounded-full bg-blue-600 border-4 border-white shadow-xl flex items-center justify-center animate-pulse z-10">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-8 h-8 text-white">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
+                            </svg>
+                        </div>
+                        <span className="text-slate-600 font-bold bg-white/80 px-3 py-1 rounded-full text-xs shadow-sm uppercase tracking-wider backdrop-blur">
+                            Tap 'Play' to Walk
+                        </span>
                     </div>
                 </div>
             )}
@@ -170,18 +297,13 @@ const MapView: React.FC<MapViewProps> = ({
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                         />
-                        {/* We try to overlay the active floor SVG - Note: This requires SVG to be accessible as URL or render specific component. 
-                       For now, let's just place a Marker at the building. 
-                       Implementing full SVGOverlay with React components is complex. 
-                       I will put a Rectangle to show the building bounds.
-                   */}
-                        <L.Rectangle bounds={bounds} pathOptions={{ color: 'blue', weight: 1, fillOpacity: 0.1 }} />
-                        <L.Marker position={center}>
-                            <L.Popup>
-                                <div className="font-bold">Main Hospital Building</div>
+                        <Rectangle bounds={bounds} pathOptions={{ color: 'blue', weight: 1, fillOpacity: 0.1 }} />
+                        <Marker position={center}>
+                            <Popup>
+                                <div className="font-bold">SCB Medical Center</div>
                                 Current Floor: {activeFloor?.name}
-                            </L.Popup>
-                        </L.Marker>
+                            </Popup>
+                        </Marker>
                     </MapContainer>
                 </div>
             )}
