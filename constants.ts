@@ -160,7 +160,10 @@ const FLOOR_2_WALLS = [
   // Central Elevators
   { start: { x: 700, y: 425 }, end: { x: 850, y: 425 } },
   { start: { x: 700, y: 575 }, end: { x: 850, y: 575 } },
-  { start: { x: 700, y: 425 }, end: { x: 700, y: 575 } },
+  // Open Left Wall (Doorway)
+  { start: { x: 700, y: 425 }, end: { x: 700, y: 450 } },
+  { start: { x: 700, y: 550 }, end: { x: 700, y: 575 } },
+  // Right Wall
   { start: { x: 850, y: 425 }, end: { x: 850, y: 575 } },
 
   // Partitions
@@ -198,7 +201,10 @@ const FLOOR_3_WALLS = [
   // Central Elevators
   { start: { x: 700, y: 425 }, end: { x: 850, y: 425 } },
   { start: { x: 700, y: 575 }, end: { x: 850, y: 575 } },
-  { start: { x: 700, y: 425 }, end: { x: 700, y: 575 } },
+  // Open Left Wall
+  { start: { x: 700, y: 425 }, end: { x: 700, y: 450 } },
+  { start: { x: 700, y: 550 }, end: { x: 700, y: 575 } },
+  // Right wall
   { start: { x: 850, y: 425 }, end: { x: 850, y: 575 } },
 ].map(w => ({ ...w, floorId: 'floor-3' }));
 
